@@ -56,7 +56,7 @@ class Ball(pyglet.sprite.Sprite):
         self.velocity_y = self.velocity * math.sin(angle_radians)  # recalculate y velocity component
 
     def check_collision(self):
-
+        global help_label
         # check upper and bottom bounds
         if self.y <= (self.image.width*self.scale)/2:  # bottom
             self.rotate(360 - self.rotation)
@@ -137,6 +137,16 @@ class ComputerPlayer(pyglet.sprite.Sprite):
             elif self.velocity_y > 0 and self.y >= window.height - self.image.width/2:
                 self.velocity_y = -500
         elif ai_player == 2:
+            if random.randint(1,3   ) == 1:
+                if ball.y > self.y:
+                    self.velocity_y = 500
+                elif ball.y < self.y:
+                    self.velocity_y = -500
+                else:
+                    self.velocity_y = 0
+            else:
+                self.velocity_y = 0
+        elif ai_player == 3:
             if ball.y > self.y:
                 self.velocity_y = 500
             elif ball.y < self.y:
@@ -198,10 +208,10 @@ def update(dt):
     ball.update(dt)
     player1.update(dt)
     player2.update(dt)
-    if player1.score >= 3:
+    if player1.score >= 10:
         pyglet.clock.unschedule(update)
         pause_label.text = "Player 1 wins!"
-    elif player2.score >= 3:
+    elif player2.score >= 10:
         pyglet.clock.unschedule(update)
         pause_label.text = "Player 2 wins!"
 
@@ -213,6 +223,7 @@ def on_draw():
 
 @window.event
 def on_key_press(symbol, modifiers):
+    global ai_player
     if symbol == pyglet.window.key.SPACE:  # pause/unpause game
         if pause_label.text:
             pyglet.clock.schedule_interval(update, 1 / 120) # call update() 120 times per second
@@ -227,7 +238,27 @@ def on_key_press(symbol, modifiers):
             help_label.text = "Controls:\nPlayer 1: use up and down arrow to move\n" \
                               "Player 2: use mouse to move\n\nGeneral:\n" \
                               "space - pause/unpause, r - restart, 1-9 - change ball speed, h - show/hide this messsage" \
+                              "NUMPAD 0 - play vs. human, NUMPAD 1-3 - play vs. computer (difficulty 1-3)" \
                               "\n\nGood luck and have fun!"
+    if symbol == pyglet.window.key.R:  # restart game
+        player1.score, player1.x, player1.y, player1.velocity_y = 0, window.width*0.1, window.height/2, 0
+        player2.score, player2.x, player2.y, player2.velocity_y = 0, window.width*0.9, window.height/2, 0
+        ball.x, ball.y = window.width/2, window.height/2
+        ball.rotate(random.choice((5, 355, 175, 185)))
+        score_label.text = str(player1.score) + " : " + str(player2.score)
+
+        if pause_label.text:
+            pyglet.clock.schedule_interval(update, 1 / 120)  # call update() 120 times per second
+            pause_label.text = ""
+
+    if symbol == pyglet.window.key.NUM_0:
+        ai_player = 0
+    if symbol == pyglet.window.key.NUM_1:
+        ai_player = 1
+    if symbol == pyglet.window.key.NUM_2:
+        ai_player = 2
+    if symbol == pyglet.window.key.NUM_3:
+        ai_player = 3
 
 
 def chase_mouse(y):
