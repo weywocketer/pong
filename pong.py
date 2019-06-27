@@ -5,8 +5,6 @@ import time
 import random
 import threading
 
-window_size = 800, 600
-ai_player = 0  # computer player difficulty (0 - 3) (0 = human player)
 
 class Ball(pyglet.sprite.Sprite):
     def __init__(self, *args, **kwargs):
@@ -77,9 +75,10 @@ class Ball(pyglet.sprite.Sprite):
             else:  # player 2 gains point
                 player2.score += 1
                 score_label.text = str(player1.score) + " : " + str(player2.score)
-                pause_label.text = "GOAL!"
                 pyglet.clock.unschedule(update)
+                pause_label.text = "GOAL!"
                 time.sleep(1)
+                pyglet.clock.schedule_interval(update, 1 / 120)
                 pause_label.text = ""
                 self.x, self.y = window.width/2, window.height/2
                 self.rotate(random.choice((5, 355)))
@@ -90,15 +89,14 @@ class Ball(pyglet.sprite.Sprite):
             else: # player 1 gains point
                 player1.score += 1
                 score_label.text = str(player1.score) + " : " + str(player2.score)
-                pause_label.text = "GOAL!"
                 pyglet.clock.unschedule(update)
+                pause_label.text = "GOAL!"
                 time.sleep(1)
-                pause_label.text = ""
                 pyglet.clock.schedule_interval(update, 1 / 120)
+                pause_label.text = ""
                 self.x, self.y = window.width/2, window.height/2
                 self.rotate(random.choice((175, 185)))
 
-window = pyglet.window.Window(*window_size)  # set up a window
 
 class Player(pyglet.sprite.Sprite):
     def __init__(self, *args, **kwargs):
@@ -108,27 +106,43 @@ class Player(pyglet.sprite.Sprite):
         self.score = 0
 
     def update(self, dt):
-        if self.key_handler[pyglet.window.key.UP]:
+        if self.key_handler[pyglet.window.key.UP] and self.y < window.height - self.image.width/2:
             self.velocity_y = 500
-        elif self.key_handler[pyglet.window.key.DOWN]:
+        elif self.key_handler[pyglet.window.key.DOWN] and self.y > self.image.width/2:
             self.velocity_y = -500
         else:
             self.velocity_y = 0
+
         self.y += self.velocity_y * dt
 
 class ComputerPlayer(pyglet.sprite.Sprite):
+    global arrived
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.velocity_y = 0
+        self.velocity_y = 500
         self.score = 0
         self.destination = None
 
     def update(self, dt):
         self.y += self.velocity_y * dt
-        if self.destination:
-            if abs(player2.y - self.destination) > 10:
-                arrived.set()
-
+        if ai_player == 0:
+            if self.destination:
+                if abs(self.y - self.destination) < 10:
+                    arrived.set()
+        elif ai_player == 1:
+            if random.randint(1,10) == 1:
+                self.velocity_y *= -1
+            if self.velocity_y < 0 and self.y <= self.image.width/2:
+                self.velocity_y = 500
+            elif self.velocity_y > 0 and self.y >= window.height - self.image.width/2:
+                self.velocity_y = -500
+        elif ai_player == 2:
+            if ball.y > self.y:
+                self.velocity_y = 500
+            elif ball.y < self.y:
+                self.velocity_y = -500
+            else:
+                self.velocity_y = 0
     '''@window.event
     def on_mouse_motion(x, y, dx, dy):
         mouse_pos = x, y, dx, dy
@@ -145,8 +159,21 @@ class ComputerPlayer(pyglet.sprite.Sprite):
 
         arrived.wait()
         self.velocity_y = 0
+        arrived.clear()
 
 
+config = open("config.txt").readlines()  # load file with configuration
+for i in range(len(config)):
+    config[i] = config[i].replace("\n", "")
+    config[i] = config[i].split()
+    config[i] = int(config[i][1])
+
+window_x, window_y, fullscreen, ai_player = config
+# ai_player - computer player difficulty (0 - 3) (0 = human player)
+
+window = pyglet.window.Window(window_x, window_y)  # set up a window
+if fullscreen:
+    window.set_fullscreen()
 main_batch = pyglet.graphics.Batch()  # all sprites and labels that are drawn on start are in main_batch
 
 player1 = Player(resources.player_image, window.width*0.1, window.height/2, batch=main_batch)
@@ -171,6 +198,13 @@ def update(dt):
     ball.update(dt)
     player1.update(dt)
     player2.update(dt)
+    if player1.score >= 3:
+        pyglet.clock.unschedule(update)
+        pause_label.text = "Player 1 wins!"
+    elif player2.score >= 3:
+        pyglet.clock.unschedule(update)
+        pause_label.text = "Player 2 wins!"
+
 
 @window.event
 def on_draw():
@@ -179,7 +213,6 @@ def on_draw():
 
 @window.event
 def on_key_press(symbol, modifiers):
-    global paused
     if symbol == pyglet.window.key.SPACE:  # pause/unpause game
         if pause_label.text:
             pyglet.clock.schedule_interval(update, 1 / 120) # call update() 120 times per second

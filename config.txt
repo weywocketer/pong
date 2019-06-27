@@ -1,0 +1,4 @@
+display_width 1680
+display_heigth 1050
+fullscreen 1
+difficulty 2
