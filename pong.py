@@ -3,20 +3,53 @@ import resources
 import math
 import time
 import random
+import threading
 
 window_size = 800, 600
+ai_player = 0  # computer player difficulty (0 - 3) (0 = human player)
 
 class Ball(pyglet.sprite.Sprite):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.velocity = 400
         self.rotate(random.choice((5, 355, 175, 185)))
+        self.key_handler = pyglet.window.key.KeyStateHandler()
 
 
     def update(self, dt):
-        self.x += self.velocity_x * dt
+        self.x += self.velocity_x * dt  # move ball based on its velocity
         self.y += self.velocity_y * dt
-        self.check_collision()
+        self.check_collision()  # check for collisions with bounds/players
+
+        # keys to change ball velocity
+        if self.key_handler[pyglet.window.key._1]:
+            self.velocity = 100
+            self.rotate(self.rotation)  # update velocity components
+        elif self.key_handler[pyglet.window.key._2]:
+            self.velocity = 200
+            self.rotate(self.rotation)
+        elif self.key_handler[pyglet.window.key._3]:
+            self.velocity = 300
+            self.rotate(self.rotation)
+        elif self.key_handler[pyglet.window.key._4]:
+            self.velocity = 400
+            self.rotate(self.rotation)
+        elif self.key_handler[pyglet.window.key._5]:
+            self.velocity = 500
+            self.rotate(self.rotation)
+        elif self.key_handler[pyglet.window.key._6]:
+            self.velocity = 600
+            self.rotate(self.rotation)
+        elif self.key_handler[pyglet.window.key._7]:
+            self.velocity = 700
+            self.rotate(self.rotation)
+        elif self.key_handler[pyglet.window.key._8]:
+            self.velocity = 800
+            self.rotate(self.rotation)
+        elif self.key_handler[pyglet.window.key._9]:
+            self.velocity = 900
+            self.rotate(self.rotation)
+
 
     def rotate(self, rotation):
         self.rotation = rotation
@@ -65,6 +98,8 @@ class Ball(pyglet.sprite.Sprite):
                 self.x, self.y = window.width/2, window.height/2
                 self.rotate(random.choice((175, 185)))
 
+window = pyglet.window.Window(*window_size)  # set up a window
+
 class Player(pyglet.sprite.Sprite):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -81,21 +116,56 @@ class Player(pyglet.sprite.Sprite):
             self.velocity_y = 0
         self.y += self.velocity_y * dt
 
-window = pyglet.window.Window(*window_size)  # set up a window
+class ComputerPlayer(pyglet.sprite.Sprite):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.velocity_y = 0
+        self.score = 0
+        self.destination = None
+
+    def update(self, dt):
+        self.y += self.velocity_y * dt
+        if self.destination:
+            if abs(player2.y - self.destination) > 10:
+                arrived.set()
+
+    '''@window.event
+    def on_mouse_motion(x, y, dx, dy):
+        mouse_pos = x, y, dx, dy
+        print(mouse_pos)'''
+
+    def chase_mouse(self, y):
+        self.destination = y
+        print("start")
+        print(self.y, y, self.velocity_y)
+        if self.y < y:
+            self.velocity_y = 500
+        if self.y > y:
+            self.velocity_y = -500
+
+        arrived.wait()
+        self.velocity_y = 0
+
+
 main_batch = pyglet.graphics.Batch()  # all sprites and labels that are drawn on start are in main_batch
 
 player1 = Player(resources.player_image, window.width*0.1, window.height/2, batch=main_batch)
 player1.scale = 0.1
 
-player2 = Player(resources.player_image, window.width*0.9, window.height/2, batch=main_batch)
+player2 = ComputerPlayer(resources.player_image, window.width*0.9, window.height/2, batch=main_batch)
 player2.scale = 0.1
 
 ball = Ball(resources.ball_image, window.width/2, window.height/2, batch=main_batch)
 ball.scale = 0.1
 
-score_label = pyglet.text.Label(str(player1.score) + " : " + str(player2.score), x=window.width/2, y=window.height*0.9, batch=main_batch, anchor_x = "center", bold=True)
-pause_label = pyglet.text.Label("press space to start, h for help", x=window.width/2, y=window.height/2 + 20, batch=main_batch, anchor_x = "center", bold=True, font_size=20)
-help_label = pyglet.text.Label("", x=window.width/2, y=window.height*0.3, batch=main_batch, anchor_x = "center", width=window.width-40, multiline=True)
+score_label = pyglet.text.Label(str(player1.score) + " : " + str(player2.score),
+                                x=window.width/2, y=window.height*0.9, batch=main_batch, anchor_x = "center", bold=True)
+
+pause_label = pyglet.text.Label("press space to start, h for help", x=window.width/2, y=window.height/2 + 20,
+                                batch=main_batch, anchor_x = "center", bold=True, font_size=20)
+
+help_label = pyglet.text.Label("", x=window.width/2, y=window.height*0.3, batch=main_batch,
+                               anchor_x = "center", width=window.width-40, multiline=True)
 
 def update(dt):
     ball.update(dt)
@@ -126,10 +196,52 @@ def on_key_press(symbol, modifiers):
                               "space - pause/unpause, r - restart, 1-9 - change ball speed, h - show/hide this messsage" \
                               "\n\nGood luck and have fun!"
 
+
+def chase_mouse(y):
+    print("start")
+    print(player2.y, y, player2.velocity_y)
+    if player2.y < y:
+        player2.velocity_y = 500
+    if player2.y > y:
+        player2.velocity_y = -500
+
+    arrived.wait()
+    player2.velocity_y = 0
+
+
+arrived = threading.Event()  # used to inform when player2 arrived at disired position
+
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    t = threading.Thread(target=player2.chase_mouse, args=(y,))
+    t.start()
+    print(t)
+    #while abs(player2.y - y) > 100:
+
+    #for i in range(10):
+    '''
+    print(player2.y, y, player2.velocity_y)
+    if player2.y < y:
+        print("a")
+        player2.velocity_y = 500
+    if player2.y > y:
+        player2.velocity_y = -500
+
+    time.sleep(1
+    player2.velocity_y = 0
+'''
+        #print("loop")
+
+
+
 window.push_handlers(player1)
 window.push_handlers(player1.key_handler)
-window.push_handlers(player2)
-window.push_handlers(player2.key_handler)
+#window.push_handlers(player2)
+#window.push_handlers(player2.key_handler)
+window.push_handlers(ball)
+window.push_handlers(ball.key_handler)
+
+
 
 if __name__ == "__main__":
     pyglet.app.run()
